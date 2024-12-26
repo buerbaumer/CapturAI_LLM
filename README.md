@@ -1,4 +1,5 @@
 # Screen Capture + Sub-Selection Analysis + Chat
+# 100% generated via chatgpt o1 pro mode
 
 This repository contains a single-page web application that allows you to:
 - Capture your screen and take either full or sub-region screenshots.
