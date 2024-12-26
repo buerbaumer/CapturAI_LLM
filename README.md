@@ -1,3 +1,6 @@
+<img width="1220" alt="image" src="https://github.com/user-attachments/assets/093635b2-2e3b-4832-97a2-5a747a3bebef" />
+
+
 # Screen Capture + Sub-Selection Analysis + Chat
 # 100% generated via chatgpt o1 pro mode
 
