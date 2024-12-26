@@ -1,0 +1,1117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Screen Capture + Sub-Selection Analysis + Chat</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500&display=swap');
+
+    html, body {
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      font-family: 'Roboto', sans-serif;
+      background: linear-gradient(135deg, #eceff1 0%, #cfd8dc 100%);
+    }
+
+    .container {
+      display: flex;
+      height: 100vh; /* fill entire viewport */
+    }
+
+    /* Capture/annotation section on the left */
+    .capture-section {
+      flex: 1; /* take remaining space so it is wide */
+      display: flex;
+      flex-direction: column;
+      align-items: center; /* center horizontally if desired */
+      border-right: 2px solid #ccc;
+    }
+
+    /* Chat section on the right (initially hidden) */
+    .chat-section {
+      width: 400px; /* fixed width for the chat panel */
+      display: none; /* hide until Start Screen Capture is pressed */
+      flex-direction: column;
+      border-left: 2px solid #ccc;
+      background-color: #f9f9f9;
+    }
+
+    .top-bar {
+      padding: 10px;
+    }
+    .button-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      justify-content: center;
+      margin-bottom: 10px;
+    }
+    .button-group button {
+      background: #455a64;
+      color: #fff;
+      padding: 8px 10px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
+      transition: background 0.3s ease;
+      font-family: 'Roboto', sans-serif;
+    }
+    .button-group button:hover {
+      background: #1c313a;
+    }
+
+    #instructions {
+      font-size: 16px;
+      text-align: center;
+      color: #333;
+      margin: 10px 0;
+      display: none;
+      max-width: 90%;
+    }
+
+    .controls-container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 20px;
+      align-items: center;
+      justify-content: center;
+    }
+    .controls-container label {
+      color: #333;
+      font-size: 14px;
+      font-weight: 500;
+      margin-right: 5px;
+    }
+    input[type="range"] {
+      width: 100px;
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    /* The main area holding the canvas is hidden initially until capture starts */
+    .main-area {
+      display: none; /* Hide until Start Screen Capture */
+      flex: 1;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+    }
+
+    #captureContainer {
+      position: relative;
+      border: 2px solid #ccc;
+      background: #fff;
+      overflow: hidden;
+      display: inline-block;
+    }
+    #captureCanvas {
+      cursor: crosshair;
+      display: block;
+    }
+    #selectionCanvas {
+      display: none;
+    }
+
+    /* Analysis in progress overlay */
+    #analysisStatus {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background-color: rgba(0,0,0,0.2);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 999999;
+    }
+    #analysisStatus span {
+      background-color: #fff;
+      padding: 20px;
+      border-radius: 8px;
+      font-size: 18px;
+      color: #333;
+    }
+
+    /* Modal (draggable, resizable, scrollable) */
+    #analysisResultModal {
+      position: fixed;
+      top: 0; 
+      left: 0; 
+      right: 0; 
+      bottom: 0;
+      background-color: rgba(0,0,0,0.3);
+      display: none; 
+      align-items: center;
+      justify-content: center;
+      z-index: 9999999;
+    }
+    #analysisResultBox {
+      position: absolute; 
+      top: 50%; 
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background-color: #fff;
+      padding: 0;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+      width: 600px;
+      max-width: 90%;
+      max-height: 80vh;
+      overflow: auto;
+      resize: both;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+    }
+    #analysisResultBoxHeader {
+      background: #f2f2f2;
+      cursor: move;
+      padding: 10px;
+      font-weight: bold;
+      border-bottom: 1px solid #ccc;
+    }
+    #analysisResultContent {
+      padding: 20px;
+      text-align: center;
+    }
+    #analysisResultText {
+      margin-bottom: 15px;
+      white-space: pre-wrap; 
+      text-align: left;
+    }
+    #analysisCodeBlocks > div {
+      border: 1px solid #ccc;
+      padding: 10px;
+      margin-top: 10px;
+      font-family: monospace;
+      white-space: pre-wrap;
+    }
+    #analysisCodeBlocks button {
+      margin-top: 5px;
+    }
+    #copyResponseBtn {
+      margin-top: 10px;
+    }
+
+    /* Minimal styles for text container editing */
+    .text-input-container {
+      position: absolute;
+      background: rgba(255, 255, 255, 0.9);
+      border: 1px solid #ccc;
+      padding: 5px;
+      z-index: 999999;
+      box-shadow: 0 0 5px rgba(0,0,0,0.2);
+    }
+    .text-handle {
+      background: #eee;
+      padding: 2px 5px;
+      margin-bottom: 5px;
+      cursor: move;
+      font-size: 12px;
+      color: #666;
+      border: 1px solid #ccc;
+    }
+    .text-input-overlay {
+      width: 200px;
+      border: 1px solid #ccc;
+      padding: 3px;
+    }
+
+    /* =========== CHAT UI STYLES =========== */
+    .chat-window {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+    }
+    .chat-history {
+      flex: 1; /* so it can scroll */
+      padding: 10px;
+      overflow-y: auto; /* make chat scrollable */
+    }
+    .chat-message {
+      margin-bottom: 12px;
+      padding: 8px;
+      border-radius: 4px;
+      position: relative; /* So copy-btn can position absolutely */
+    }
+    .chat-message.user {
+      background-color: #e2f7ff;
+      align-self: flex-start;
+    }
+    .chat-message.assistant {
+      background-color: #ffffff;
+      align-self: flex-end;
+    }
+    .copy-btn {
+      position: absolute;
+      right: 8px;
+      bottom: 8px;
+      background: #455a64;
+      color: #fff;
+      border: none;
+      border-radius: 3px;
+      padding: 4px 6px;
+      cursor: pointer;
+      font-size: 12px;
+    }
+    .chat-input {
+      display: flex;
+      flex-direction: row;
+      padding: 10px;
+      border-top: 1px solid #ccc;
+    }
+    #chatTextarea {
+      flex: 1;
+      resize: none;
+      padding: 6px;
+      border-radius: 4px;
+      font-size: 14px;
+      font-family: 'Roboto', sans-serif;
+    }
+    #sendBtn {
+      margin-left: 6px;
+      background: #455a64;
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+      padding: 8px 12px;
+    }
+    #sendBtn:hover {
+      background: #1c313a;
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+  <!-- LEFT SIDE: CAPTURE/ANNOTATION -->
+  <div class="capture-section">
+    <div class="top-bar">
+      <div class="button-group">
+        <button id="startCaptureBtn">Start Screen Capture</button>
+        <button id="enterApiKeyBtn" class="hidden">Enter API Key</button>
+        <button id="fullScreenshotBtn" class="hidden">Full Screenshot</button>
+        <button id="editModeBtn" class="hidden">Start Edit Mode</button>
+        <button id="textModeBtn" class="hidden">Start Text Mode</button>
+        <button id="undoBtn" class="hidden">Undo</button>
+        <button id="redoBtn" class="hidden">Redo</button>
+        <button id="zoomInBtn" class="hidden">Zoom In</button>
+        <button id="zoomOutBtn" class="hidden">Zoom Out</button>
+        <button id="clearSelectionBtn" class="hidden">Clear Selection</button>
+      </div>
+      <div class="controls-container hidden" id="lineControls">
+        <label for="lineThickness">Line Thickness:</label>
+        <input type="range" id="lineThickness" min="1" max="10" value="2">
+        <label for="lineColor">Line Color:</label>
+        <input type="color" id="lineColor" value="#ff0000">
+      </div>
+      <div class="controls-container hidden" id="textControls">
+        <label for="fontSize">Font Size:</label>
+        <input type="number" id="fontSize" value="20" min="10" max="100" style="width:60px;">
+        <label for="fontColor">Font Color:</label>
+        <input type="color" id="fontColor" value="#000000">
+      </div>
+      <div id="instructions">
+        Click and drag to select a rectangular region or enable edit/text mode to annotate.
+      </div>
+    </div>
+
+    <!-- Hidden by default; shown after Start Screen Capture -->
+    <div class="main-area">
+      <div id="captureContainer">
+        <canvas id="captureCanvas"></canvas>
+        <canvas id="selectionCanvas"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT SIDE: CHAT (initially hidden by CSS) -->
+  <div class="chat-section">
+    <div class="chat-window">
+      <div class="chat-history" id="chatHistory">
+        <!-- Messages appended dynamically -->
+      </div>
+      <div class="chat-input">
+        <textarea id="chatTextarea" rows="2" placeholder="Type here..."></textarea>
+        <button id="sendBtn">Send</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Analysis in progress overlay -->
+<div id="analysisStatus">
+  <span>Analyzing selection, please wait...</span>
+</div>
+
+<!-- Analysis result modal -->
+<div id="analysisResultModal">
+  <div id="analysisResultBox">
+    <div id="analysisResultBoxHeader">Analysis Result</div>
+    <div id="analysisResultContent">
+      <div id="analysisResultText"></div>
+      <div id="analysisCodeBlocks"></div>
+      
+      <button id="copyResponseBtn">Copy Entire Response</button>
+      <br/><br/>
+      <button onclick="document.getElementById('analysisResultModal').style.display='none';">
+        Close
+      </button>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+  /****************************
+   * GLOBAL STATE + ELEMENTS  *
+   ****************************/
+  let openaiApiKey = "";
+  let storedSelectionDataURL = ""; // We'll store the most recent rectangular selection here
+  let lastSelectionRect = null;    
+  let originalVideoWidth = 0;
+  let originalVideoHeight = 0;
+  let scaleFactor = 1.0;           
+
+  let isDragging = false, startX=0, startY=0, endX=0, endY=0;
+  let isEditing = false;
+  let isTextMode = false;
+  let isDrawing = false;
+  let currentLine = [];
+  let drawnLines = [];
+  let placedTexts = [];
+
+  let activeTextContainer = null;
+  let activeTextInput = null;
+  let isDraggingTextContainer = false;
+  let textContainerOffsetX = 0;
+  let textContainerOffsetY = 0;
+  let selectedTextIndex = -1;
+
+  let actionStack = [];
+  let undoneStack = [];
+
+  // For the chat portion:
+  const chatHistory = []; // array of { role: "user"|"assistant", content: string }
+
+  // DOM references
+  const startCaptureBtn = document.getElementById('startCaptureBtn');
+  const enterApiKeyBtn = document.getElementById('enterApiKeyBtn');
+  const fullScreenshotBtn = document.getElementById('fullScreenshotBtn');
+  const editModeBtn = document.getElementById('editModeBtn');
+  const textModeBtn = document.getElementById('textModeBtn');
+  const undoBtn = document.getElementById('undoBtn');
+  const redoBtn = document.getElementById('redoBtn');
+  const zoomInBtn = document.getElementById('zoomInBtn');
+  const zoomOutBtn = document.getElementById('zoomOutBtn');
+  const clearSelectionBtn = document.getElementById('clearSelectionBtn');
+  const lineThicknessInput = document.getElementById('lineThickness');
+  const lineColorInput = document.getElementById('lineColor');
+  const fontSizeInput = document.getElementById('fontSize');
+  const fontColorInput = document.getElementById('fontColor');
+  const lineControls = document.getElementById('lineControls');
+  const textControls = document.getElementById('textControls');
+  const instructions = document.getElementById('instructions');
+  const captureContainer = document.getElementById('captureContainer');
+  const captureCanvas = document.getElementById('captureCanvas');
+  const selectionCanvas = document.getElementById('selectionCanvas');
+  const ctx = captureCanvas.getContext('2d');
+
+  const analysisStatus = document.getElementById('analysisStatus');
+  const analysisResultModal = document.getElementById('analysisResultModal');
+  const analysisResultText = document.getElementById('analysisResultText');
+  const analysisCodeBlocks = document.getElementById('analysisCodeBlocks');
+  const copyResponseBtn = document.getElementById('copyResponseBtn');
+
+  const chatHistoryDiv = document.getElementById('chatHistory');
+  const chatTextarea = document.getElementById('chatTextarea');
+  const sendBtn = document.getElementById('sendBtn');
+
+  /****************************
+   * SCREEN CAPTURE + SETUP   *
+   ****************************/
+  // Hide canvas area until "Start Screen Capture" is pressed
+  startCaptureBtn.addEventListener('click', async () => {
+    try {
+      // Show the main area (canvas) and the chat section
+      document.querySelector('.main-area').style.display = 'flex';
+      document.querySelector('.chat-section').style.display = 'flex';
+
+      const videoStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
+      const video = document.createElement('video');
+      video.srcObject = videoStream;
+
+      video.addEventListener('loadedmetadata', () => {
+        originalVideoWidth = video.videoWidth;
+        originalVideoHeight = video.videoHeight;
+        captureCanvas.width = originalVideoWidth;
+        captureCanvas.height = originalVideoHeight;
+
+        // Show relevant buttons/instructions
+        instructions.style.display = 'block';
+        fullScreenshotBtn.classList.remove('hidden');
+        editModeBtn.classList.remove('hidden');
+        textModeBtn.classList.remove('hidden');
+        undoBtn.classList.remove('hidden');
+        redoBtn.classList.remove('hidden');
+        zoomInBtn.classList.remove('hidden');
+        zoomOutBtn.classList.remove('hidden');
+        clearSelectionBtn.classList.remove('hidden');
+        enterApiKeyBtn.classList.remove('hidden');
+
+        requestAnimationFrame(() => drawFrame(video));
+      });
+
+      await video.play();
+    } catch (err) {
+      console.error("Error starting screen capture:", err);
+    }
+  });
+
+  // Collect API key
+  enterApiKeyBtn.addEventListener('click', () => {
+    const userKey = prompt("Please enter your OpenAI API Key (starts with 'sk-...'):");
+    if (userKey && userKey.startsWith("sk-")) {
+      openaiApiKey = userKey.trim();
+      alert("API Key set successfully!");
+    } else {
+      alert("Invalid key entered.");
+    }
+  });
+
+  function drawFrame(video) {
+    if (!video || video.paused || video.ended) return;
+
+    // Clear and draw
+    ctx.setTransform(1,0,0,1,0,0);
+    ctx.clearRect(0,0,captureCanvas.width,captureCanvas.height);
+    ctx.drawImage(video, 0, 0, captureCanvas.width, captureCanvas.height);
+
+    // Overlay existing annotations
+    drawAnnotations();
+
+    // While dragging for selection
+    if (isDragging && !isEditing && !isTextMode && !activeTextContainer) {
+      const selX = Math.min(startX, endX);
+      const selY = Math.min(startY, endY);
+      const selW = Math.abs(endX - startX);
+      const selH = Math.abs(endY - startY);
+
+      ctx.strokeStyle = '#ff3b30';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(selX, selY, selW, selH);
+    }
+
+    // Keep the last selection rectangle displayed
+    if (lastSelectionRect) {
+      ctx.strokeStyle = '#ff3b30';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(
+        lastSelectionRect.x,
+        lastSelectionRect.y,
+        lastSelectionRect.w,
+        lastSelectionRect.h
+      );
+    }
+
+    requestAnimationFrame(() => drawFrame(video));
+  }
+
+  function drawAnnotations() {
+    // lines
+    for (let line of drawnLines) {
+      ctx.lineWidth = line.thickness;
+      ctx.strokeStyle = line.color;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+
+      ctx.beginPath();
+      for (let i = 0; i < line.points.length; i++) {
+        const p = line.points[i];
+        if (i === 0) ctx.moveTo(p.x, p.y);
+        else ctx.lineTo(p.x, p.y);
+      }
+      ctx.stroke();
+    }
+
+    // actively drawn line
+    if (isDrawing && currentLine.length > 0) {
+      ctx.lineWidth = parseInt(lineThicknessInput.value, 10);
+      ctx.strokeStyle = lineColorInput.value;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+
+      ctx.beginPath();
+      for (let i = 0; i < currentLine.length; i++) {
+        const p = currentLine[i];
+        if (i === 0) ctx.moveTo(p.x, p.y);
+        else ctx.lineTo(p.x, p.y);
+      }
+      ctx.stroke();
+    }
+
+    // placed texts
+    for (let t of placedTexts) {
+      ctx.font = `${t.fontSize}px sans-serif`;
+      ctx.fillStyle = t.color;
+      ctx.fillText(t.text, t.x, t.y);
+    }
+  }
+
+  /***********************************
+   * MOUSE / ANNOTATION EVENT LISTENERS
+   ***********************************/
+  function getMouseCoords(e) {
+    const rect = captureCanvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    return {x, y};
+  }
+
+  captureCanvas.addEventListener('mousedown', (e) => {
+    if (activeTextContainer) return;
+    const {x, y} = getMouseCoords(e);
+
+    if (isTextMode) {
+      let idx = findTextAtPosition(x, y);
+      if (idx !== -1) {
+        selectedTextIndex = idx;
+        const txt = placedTexts[idx];
+        createTextInputContainer(txt.x, txt.y, txt.text, true);
+      } else {
+        selectedTextIndex = -1;
+        createTextInputContainer(x, y, '');
+      }
+    } else if (isEditing) {
+      isDrawing = true;
+      currentLine = [{x, y}];
+    } else {
+      isDragging = true;
+      startX = x;
+      startY = y;
+    }
+  });
+
+  captureCanvas.addEventListener('mousemove', (e) => {
+    if (activeTextContainer) return;
+    const {x, y} = getMouseCoords(e);
+
+    if (isEditing && isDrawing) {
+      currentLine.push({x, y});
+    } else if (!isEditing && !isTextMode && isDragging) {
+      endX = x;
+      endY = y;
+    }
+  });
+
+  captureCanvas.addEventListener('mouseup', () => {
+    if (activeTextContainer) return;
+    if (isEditing && isDrawing) {
+      const newLine = {
+        color: lineColorInput.value,
+        thickness: parseInt(lineThicknessInput.value, 10),
+        points: currentLine
+      };
+      drawnLines.push(newLine);
+      addAction({type:'addLine', line:newLine});
+      currentLine = [];
+      isDrawing = false;
+    } else if (!isEditing && !isTextMode && isDragging) {
+      isDragging = false;
+      if (startX !== endX && startY !== endY) {
+        const width = Math.abs(endX - startX);
+        const height = Math.abs(endY - startY);
+        const selX = Math.min(startX, endX);
+        const selY = Math.min(startY, endY);
+
+        // store the rectangle for visual
+        lastSelectionRect = { x: selX, y: selY, w: width, h: height };
+
+        // store the actual selected region to a data URL
+        selectionCanvas.width = width;
+        selectionCanvas.height = height;
+        const sctx = selectionCanvas.getContext('2d');
+        sctx.clearRect(0, 0, width, height);
+        sctx.drawImage(
+          captureCanvas,
+          selX, selY, width, height,
+          0, 0, width, height
+        );
+        storedSelectionDataURL = selectionCanvas.toDataURL('image/png');
+      }
+    }
+  });
+
+  /*************************************
+   * TOOLBAR + BUTTON EVENT LISTENERS  *
+   *************************************/
+  fullScreenshotBtn.addEventListener('click', () => {
+    const fullDataURL = captureCanvas.toDataURL('image/png');
+    const link = document.createElement('a');
+    link.href = fullDataURL;
+    link.download = 'full_screenshot.png';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  });
+
+  editModeBtn.addEventListener('click', () => {
+    if (activeTextContainer) return;
+    isEditing = !isEditing;
+    if (isEditing) {
+      editModeBtn.textContent = 'Exit Edit Mode';
+      isTextMode = false;
+      textModeBtn.textContent = 'Start Text Mode';
+      textControls.classList.add('hidden');
+      lineControls.classList.remove('hidden');
+    } else {
+      editModeBtn.textContent = 'Start Edit Mode';
+      lineControls.classList.add('hidden');
+    }
+  });
+
+  textModeBtn.addEventListener('click', () => {
+    if (activeTextContainer) return;
+    isTextMode = !isTextMode;
+    if (isTextMode) {
+      textModeBtn.textContent = 'Exit Text Mode';
+      isEditing = false;
+      editModeBtn.textContent = 'Start Edit Mode';
+      lineControls.classList.add('hidden');
+      textControls.classList.remove('hidden');
+    } else {
+      textModeBtn.textContent = 'Start Text Mode';
+      textControls.classList.add('hidden');
+    }
+  });
+
+  undoBtn.addEventListener('click', () => {
+    if (activeTextContainer) return;
+    if (actionStack.length > 0) {
+      const action = actionStack.pop();
+      undoneStack.push(action);
+      revertAction(action);
+    }
+  });
+
+  redoBtn.addEventListener('click', () => {
+    if (activeTextContainer) return;
+    if (undoneStack.length > 0) {
+      const action = undoneStack.pop();
+      actionStack.push(action);
+      applyAction(action, false);
+    }
+  });
+
+  zoomInBtn.addEventListener('click', () => {
+    scaleFactor *= 1.1;
+    captureCanvas.width = originalVideoWidth * scaleFactor;
+    captureCanvas.height = originalVideoHeight * scaleFactor;
+  });
+
+  zoomOutBtn.addEventListener('click', () => {
+    scaleFactor /= 1.1;
+    captureCanvas.width = originalVideoWidth * scaleFactor;
+    captureCanvas.height = originalVideoHeight * scaleFactor;
+  });
+
+  clearSelectionBtn.addEventListener('click', () => {
+    lastSelectionRect = null;
+    storedSelectionDataURL = "";
+    drawnLines = [];
+    placedTexts = [];
+    actionStack = [];
+    undoneStack = [];
+  });
+
+  /*************************************
+   * ACTION STACK HELPERS (UNDO/REDO)  *
+   *************************************/
+  function addAction(action) {
+    actionStack.push(action);
+    undoneStack = [];
+  }
+  function revertAction(action) {
+    if (action.type === 'addLine') {
+      drawnLines.pop();
+    } else if (action.type === 'addText') {
+      placedTexts.pop();
+    } else if (action.type === 'removeText') {
+      placedTexts.push(action.text);
+    } else if (action.type === 'moveText') {
+      const idx = action.index;
+      placedTexts[idx] = {...placedTexts[idx], ...action.oldProps};
+    }
+  }
+  function applyAction(action) {
+    if (action.type === 'addLine') {
+      drawnLines.push(action.line);
+    } else if (action.type === 'addText') {
+      placedTexts.push(action.text);
+    } else if (action.type === 'removeText') {
+      let idx = placedTexts.indexOf(action.text);
+      if (idx !== -1) placedTexts.splice(idx, 1);
+    } else if (action.type === 'moveText') {
+      const idx = action.index;
+      placedTexts[idx] = {...placedTexts[idx], ...action.newProps};
+    }
+  }
+
+  /*********************************
+   * TEXT EDITING HELPERS          *
+   *********************************/
+  function createTextInputContainer(x, y, initialText, editingExisting=false) {
+    const textContainer = document.createElement('div');
+    textContainer.className = 'text-input-container';
+    textContainer.style.left = x + 'px';
+    // baseline is at "y", so shift container upward a bit
+    textContainer.style.top = (y - parseInt(fontSizeInput.value,10)) + 'px';
+
+    const handle = document.createElement('div');
+    handle.className = 'text-handle';
+    handle.textContent = 'Drag here';
+    textContainer.appendChild(handle);
+
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.value = initialText;
+    input.placeholder = 'Type text, press Enter';
+    input.className = 'text-input-overlay';
+    textContainer.appendChild(input);
+
+    captureContainer.appendChild(textContainer);
+    activeTextContainer = textContainer;
+    activeTextInput = input;
+    captureCanvas.style.pointerEvents = 'none';
+    input.focus();
+
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        finalizeTextInput(textContainer, editingExisting);
+      } else if (e.key === 'Escape') {
+        cancelTextInput(textContainer);
+      } else if (e.key === 'Delete') {
+        if (editingExisting && selectedTextIndex !== -1) {
+          removeSelectedText();
+        }
+      }
+    });
+
+    handle.addEventListener('mousedown', startDragTextContainer);
+    document.addEventListener('mousemove', dragTextContainer);
+    document.addEventListener('mouseup', stopDragTextContainer);
+  }
+
+  function startDragTextContainer(e) {
+    if (!activeTextContainer) return;
+    isDraggingTextContainer = true;
+    const rect = activeTextContainer.getBoundingClientRect();
+    textContainerOffsetX = e.clientX - rect.left;
+    textContainerOffsetY = e.clientY - rect.top;
+    e.preventDefault();
+  }
+
+  function dragTextContainer(e) {
+    if (isDraggingTextContainer && activeTextContainer) {
+      let newX = e.clientX - textContainerOffsetX;
+      let newY = e.clientY - textContainerOffsetY;
+      activeTextContainer.style.left = newX + 'px';
+      activeTextContainer.style.top = newY + 'px';
+    }
+  }
+
+  function stopDragTextContainer() {
+    if (isDraggingTextContainer) {
+      isDraggingTextContainer = false;
+    }
+  }
+
+  function finalizeTextInput(textContainer, editingExisting) {
+    const input = textContainer.querySelector('input');
+    const textVal = input.value.trim();
+    const rect = captureContainer.getBoundingClientRect();
+    const containerRect = textContainer.getBoundingClientRect();
+    const xPos = containerRect.left - rect.left;
+    const yPos = (containerRect.top - rect.top) + parseInt(fontSizeInput.value, 10);
+
+    if (editingExisting && selectedTextIndex !== -1) {
+      let oldText = placedTexts[selectedTextIndex];
+      let oldProps = { ...oldText };
+      let newProps = {
+        x: xPos,
+        y: yPos,
+        text: textVal || oldText.text,
+        fontSize: parseInt(fontSizeInput.value,10),
+        color: fontColorInput.value
+      };
+      placedTexts[selectedTextIndex] = {...oldText, ...newProps};
+      addAction({type:'moveText', index:selectedTextIndex, oldProps, newProps});
+    } else {
+      if (textVal) {
+        const newText = {
+          x: xPos,
+          y: yPos,
+          text: textVal,
+          fontSize: parseInt(fontSizeInput.value, 10),
+          color: fontColorInput.value
+        };
+        placedTexts.push(newText);
+        addAction({type:'addText', text:newText});
+      }
+    }
+    removeTextContainer(textContainer);
+  }
+
+  function cancelTextInput(textContainer) {
+    removeTextContainer(textContainer);
+  }
+
+  function removeSelectedText() {
+    if (selectedTextIndex === -1) return;
+    const removed = placedTexts[selectedTextIndex];
+    placedTexts.splice(selectedTextIndex, 1);
+    addAction({type:'removeText', text:removed});
+    removeTextContainer(activeTextContainer);
+    selectedTextIndex = -1;
+  }
+
+  function removeTextContainer(textContainer) {
+    captureContainer.removeChild(textContainer);
+    activeTextContainer = null;
+    activeTextInput = null;
+    captureCanvas.style.pointerEvents = 'auto';
+    selectedTextIndex = -1;
+  }
+
+  function findTextAtPosition(x, y) {
+    for (let i = placedTexts.length-1; i >= 0; i--) {
+      let t = placedTexts[i];
+      ctx.font = `${t.fontSize}px sans-serif`;
+      let width = ctx.measureText(t.text).width;
+      let height = t.fontSize;
+      let bx = t.x;
+      let by = t.y - height;
+      if (x >= bx && x <= bx+width && y >= by && y <= by+height) {
+        return i;
+      }
+    }
+    return -1;
+  }
+
+  /*********************************
+   * CHAT UI + OPENAI INTEGRATION  *
+   *********************************/
+
+  /**
+   * Basic helper to safely convert code blocks and line breaks from
+   * the assistant's text into HTML. This preserves code formatting.
+   */
+  function formatAssistantResponse(content) {
+    // 1) Convert triple backtick code blocks into <pre><code>...</code></pre>
+    //    Using a regex that captures the content inside ``` ... ```
+    let formatted = content.replace(
+      /```([^`]+)```/g,
+      (match, codeContent) => {
+        // Escape HTML special chars in code content
+        const escapedCode = codeContent
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;");
+
+        return `<pre><code>${escapedCode}</code></pre>`;
+      }
+    );
+
+    // 2) Replace newlines with <br> for basic line break preservation
+    formatted = formatted.replace(/\n/g, "<br>");
+
+    return formatted;
+  }
+
+  // Utility to append a message to the chat
+  function appendChatMessage(role, content) {
+    // Keep the chat in memory
+    chatHistory.push({ role, content });
+
+    // Create a DOM element
+    const msgDiv = document.createElement('div');
+    msgDiv.className = `chat-message ${role}`;
+
+    // If it's the user, just show plain text
+    // If it's the assistant, parse possible Markdown-like content
+    if (role === 'assistant') {
+      msgDiv.innerHTML = formatAssistantResponse(content);
+      // Add a "copy" button in the corner
+      const copyBtn = document.createElement('button');
+      copyBtn.className = 'copy-btn';
+      copyBtn.innerText = 'Copy';
+      copyBtn.addEventListener('click', () => {
+        navigator.clipboard.writeText(content)
+          .then(() => alert("Copied to clipboard!"))
+          .catch(() => alert("Failed to copy!"));
+      });
+      msgDiv.appendChild(copyBtn);
+    } else {
+      msgDiv.textContent = content;
+    }
+
+    chatHistoryDiv.appendChild(msgDiv);
+    chatHistoryDiv.scrollTop = chatHistoryDiv.scrollHeight; // auto-scroll to bottom
+  }
+
+  // Submit chat on Enter, new line on Shift+Enter
+  chatTextarea.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      if (!e.shiftKey) {
+        e.preventDefault();
+        handleSend();
+      }
+    }
+  });
+
+  sendBtn.addEventListener('click', handleSend);
+
+  /**
+   * Handle the sending of the user message + image data (either the selection if available, or else entire canvas)
+   */
+  async function handleSend() {
+    const userInput = chatTextarea.value.trim();
+    if (!userInput) return;
+    chatTextarea.value = '';
+
+    // Append user message to chat
+    appendChatMessage('user', userInput);
+
+    if (!openaiApiKey) {
+      appendChatMessage('assistant', "Please enter your OpenAI API key first!");
+      return;
+    }
+
+    // If there is a selected region, use it; otherwise, use the entire canvas
+    let imageData;
+    if (!storedSelectionDataURL) {
+      // No rectangular selection found – send the entire canvas instead
+      imageData = captureCanvas.toDataURL('image/png');
+    } else {
+      // Use the selected region
+      imageData = storedSelectionDataURL;
+    }
+
+    // Show a "thinking..." placeholder
+    appendChatMessage('assistant', "Thinking...");
+
+    try {
+      const response = await fetch("https://api.openai.com/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${openaiApiKey}`
+        },
+        body: JSON.stringify({
+          model: "gpt-4o-mini",
+          messages: [
+            {
+              role: "user",
+              content: [
+                {
+                  type: "text",
+                  text: userInput
+                },
+                {
+                  type: "image_url",
+                  image_url: {
+                    url: imageData  // e.g. data:image/png;base64,<long-string>
+                  }
+                }
+              ]
+            }
+          ],
+          temperature: 0.7
+        })
+      });
+
+      // Remove the "Thinking..." message from the DOM & chat array
+      removeThinkingPlaceholder();
+
+      if (!response.ok) {
+        throw new Error(`OpenAI request failed: ${response.status} - ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      let answer = "";
+      if (data && data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) {
+        answer = data.choices[0].message.content;
+      } else {
+        answer = "No textual answer found in response.";
+      }
+
+      // Finally, append new assistant message (with formatting)
+      appendChatMessage('assistant', answer);
+    } catch (err) {
+      console.error("Error calling OpenAI:", err);
+      removeThinkingPlaceholder();
+      appendChatMessage('assistant', "An error occurred while calling OpenAI.");
+    }
+  }
+
+  // Utility to remove "Thinking..." from chat
+  function removeThinkingPlaceholder() {
+    const idxThinking = chatHistory.findIndex((m) => m.content === "Thinking..." && m.role === 'assistant');
+    if (idxThinking !== -1) {
+      // remove from DOM (the last child should be the "Thinking..." message)
+      chatHistoryDiv.removeChild(chatHistoryDiv.lastChild);
+      // remove from array
+      chatHistory.splice(idxThinking, 1);
+    }
+  }
+
+  /***********************
+   * MODAL DRAGGABLE LOGIC
+   ***********************/
+  const analysisBox = document.getElementById('analysisResultBox');
+  const analysisBoxHeader = document.getElementById('analysisResultBoxHeader');
+  let offsetX = 0, offsetY = 0;
+  let isDraggingModal = false;
+
+  analysisBoxHeader.addEventListener('mousedown', (e) => {
+    isDraggingModal = true;
+    offsetX = e.clientX - analysisBox.offsetLeft;
+    offsetY = e.clientY - analysisBox.offsetTop;
+    document.addEventListener('mousemove', dragModalMove);
+    document.addEventListener('mouseup', dragModalUp);
+    e.preventDefault();
+  });
+
+  function dragModalMove(e) {
+    if (!isDraggingModal) return;
+    const newX = e.clientX - offsetX;
+    const newY = e.clientY - offsetY;
+    analysisBox.style.left = newX + 'px';
+    analysisBox.style.top = newY + 'px';
+  }
+  function dragModalUp() {
+    if (isDraggingModal) {
+      isDraggingModal = false;
+      document.removeEventListener('mousemove', dragModalMove);
+      document.removeEventListener('mouseup', dragModalUp);
+    }
+  }
+
+  /* Copy entire GPT response from modal */
+  copyResponseBtn.addEventListener('click', () => {
+    const textToCopy = analysisResultText.textContent || "";
+    navigator.clipboard.writeText(textToCopy)
+      .then(() => {
+        alert("Copied entire response to clipboard!");
+      })
+      .catch((err) => {
+        console.error("Failed to copy text:", err);
+      });
+  });
+</script>
+</body>
+</html>
