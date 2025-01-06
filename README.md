@@ -1,171 +1,122 @@
-<img width="1220" alt="image" src="https://github.com/user-attachments/assets/093635b2-2e3b-4832-97a2-5a747a3bebef" />
+# ✨ Screen Capture + AI Analysis & Chat
+
+Welcome to an interactive application that empowers you with screen capture, annotation, and intelligent AI analysis. This project not only captures your screen but also allows you to highlight, annotate, and engage with an AI assistant, all while maintaining aspect ratios perfectly. Let's explore how this works!
 
 
-# Screen Capture + Sub-Selection Analysis + Chat
-# 100% generated via chatgpt o1 pro mode
+## 🎯 Key Features
 
-This repository contains a single-page web application that allows you to:
-- Capture your screen and take either full or sub-region screenshots.
-- Annotate the captured screen with freehand drawings (Edit Mode) and text (Text Mode).
-- Interact with an integrated chat panel that can send your current screenshot (or its selected area) to an OpenAI API endpoint for further analysis.
+-   **📸 Real-time Screen Capture:** Effortless, high-quality screen captures.
+-   **✂️ Precise Sub-Selection:** Select any region with precision using our intuitive click-and-drag tool.
+-   **✍️ Versatile Annotation Tools:** Mark up your captures with freehand lines, shapes, and text.
+-   **🧽 Intuitive Eraser:** Correct your annotations with our eraser tool.
+-   **↩️ & ↪️ Undo/Redo:** Easily step back or forward in your annotation history.
+-   **🧹 Clear Canvas:** Quickly reset and start anew.
+-   **🧠 AI-Powered Insights:** Let our AI analyze and provide intelligent textual responses.
+-   **💬 Interactive Chat:** Engage the AI assistant in a real-time chat.
+-   **📝 Dynamic Documentation:** Generate comprehensive documentation from your annotated captures.
+-    **🔍 Contextual Shape Analysis:** Right-click on any closed shape to get an explanation.
+-   **📐 Aspect Ratio Mastery:** Captures and canvas maintain correct aspect ratios.
+-   **Responsive Design:** Works perfectly on different screen sizes and devices.
 
-It leverages the browser's `navigator.mediaDevices.getDisplayMedia` API for screen capture, along with HTML `<canvas>` elements and JavaScript for annotations, zooming, undo/redo, and more.
+## 🎬 Demo
 
-## Table of Contents
-- [Features](#features)
-- [Installation and Setup](#installation-and-setup)
-- [Usage Guide](#usage-guide)
-  - [1. Start Screen Capture](#1-start-screen-capture)
-  - [2. Enter OpenAI API Key](#2-enter-openai-api-key)
-  - [3. Taking Screenshots](#3-taking-screenshots)
-  - [4. Annotation Modes](#4-annotation-modes)
-  - [5. Undo/Redo](#5-undoredo)
-  - [6. Zoom In/Out](#6-zoom-inout)
-  - [7. Clear Selection](#7-clear-selection)
-  - [8. Chat Panel](#8-chat-panel)
-- [File Overview](#file-overview)
-- [Browser Support](#browser-support)
-- [Contributing](#contributing)
-- [License](#license)
+![image](https://github.com/user-attachments/assets/423f2abf-2ea1-4a4d-9632-62ff0e565679)
 
----
+![image](https://github.com/user-attachments/assets/ff8d5e56-7eb7-4c4a-889e-3823f26e9d04)
 
-## Features
+![image](https://github.com/user-attachments/assets/ded8a979-6493-4b76-b10a-30fb0f8a2fd4)
 
-1. **Screen Capture**  
-   Uses the native [Screen Capture API](https://developer.mozilla.org/en-US/docs/Web/API/Screen_Capture_API) to record your screen (or any specific window/application).  
-   
-2. **Full Screenshot or Rectangular Selection**  
-   - **Full Screenshot**: Capture the entire screen or application window.  
-   - **Sub-Selection**: Click-and-drag to select a rectangular region of the live screen feed; then store that sub-region as an image for analysis or chat.
+![image](https://github.com/user-attachments/assets/e726a6f2-4ba1-43a4-b7f1-4ce6a0138883)
 
-3. **Annotation**  
-   - **Edit Mode (Freehand Drawing)**: Draw lines of adjustable color and thickness.  
-   - **Text Mode**: Insert text labels with editable font size and color.  
-   - **Undo/Redo**: Maintains a stack of actions (drawing lines, adding text) to revert or reapply changes.
 
-4. **Zoom**  
-   - Incrementally zoom in or out of the captured screen to inspect finer details or see more area at once.
+## 🛠️ Getting Started
 
-5. **Chat Integration**  
-   - An on-page chat UI that allows you to send your image (full or the selected region) along with text prompts to an OpenAI API.  
-   - Each response from the assistant is displayed in the chat panel, with support for code blocks, formatting, and a copy-to-clipboard feature.
+Follow these steps to get the application running on your local machine:
 
-6. **Lightweight & Self-Contained**  
-   Everything is included in a single HTML file (with inline CSS and JavaScript). Simply open it in a modern browser to get started.
+### 1. Backend Setup - Python Server 🐍
 
----
+1.  **Install Dependencies:** Use `pip` to install required Python packages:
 
-## Installation and Setup
+    ```bash
+    pip install Flask python-dotenv
+    ```
 
-1. **Clone or Download** this repository to your local machine.
+2.  **Create `.env` File:** Create a `.env` file and add your OpenAI API key, replacing `YOUR_OPENAI_API_KEY_HERE`:
 
-2. **Open the file** `index.html` (or whatever you have named the HTML file containing this code) in a modern browser such as Google Chrome, Microsoft Edge, or Firefox (some browsers may have partial support for `getDisplayMedia`, so Chrome or Edge is recommended).
+    ```
+    OPENAI_API_KEY=YOUR_OPENAI_API_KEY_HERE
+    ```
 
-3. **Allow Screen Capture** when prompted. The browser will ask you which screen or application window you want to share.
+    ⚠️ **Important:** Protect your API key! Do not commit this file to your version control.
 
-> **Note**: If you open this file directly from the filesystem (using `file://`), some browsers or OS settings may prevent full functionality. If you run into issues, consider using a local HTTP server (for example, `python -m http.server`) and then open `http://localhost:8000/index.html`.
+3.  **Create `app.py`:** Create your `app.py` using the code below. Make sure to keep it in the same directory as `.env`.
 
----
+    ```python
+    from flask import Flask, jsonify
+    from flask_cors import CORS
+    import os
+    from dotenv import load_dotenv
 
-## Usage Guide
+    load_dotenv()
+    openai_api_key = os.getenv("OPENAI_API_KEY")
 
-Once the page loads, you'll see two sections:  
-- The **left** side for screen capture and annotations.  
-- The **right** side for the chat interface (hidden initially, until you start screen capture).
+    app = Flask(__name__)
+    CORS(app)
 
-### 1. Start Screen Capture
-- Click **Start Screen Capture**.  
-- Your browser will prompt you to choose which screen or window to share.  
+    @app.route("/")
+    def get_api_key():
+        return jsonify({"access_token": openai_api_key})
 
-Once you allow access, the captured stream will appear on the left canvas.
+    if __name__ == "__main__":
+        app.run(port=3000, debug=True)
+    ```
 
-### 2. Enter OpenAI API Key
-- Click the **Enter API Key** button.  
-- Provide your `sk-...` key from OpenAI.  
-  - This will be used by the chat panel to send your text prompt and screenshot (or selected region).  
-  - If you do not provide a valid key, the chat panel will remind you to enter one before continuing.
+4.  **Run the Server:** Start your Flask server:
 
-### 3. Taking Screenshots
-- **Full Screenshot**: Click **Full Screenshot** to save the entire captured screen as `full_screenshot.png`.  
-- **Rectangular Selection**:  
-  - By default (when not in Edit Mode or Text Mode), click and drag over the canvas to draw a selection rectangle.  
-  - This sub-region is stored internally and can be sent to the chat or replaced if a new selection is made.
+    ```bash
+    python app.py
+    ```
 
-### 4. Annotation Modes
-- **Edit Mode (Drawing)**  
-  - Toggle this mode with **Start Edit Mode** / **Exit Edit Mode**.  
-  - When active, you can draw freehand lines.  
-  - Adjust **Line Thickness** and **Line Color** in the controls that appear.  
-- **Text Mode**  
-  - Toggle this mode with **Start Text Mode** / **Exit Text Mode**.  
-  - Click anywhere on the captured image to create a text field.  
-  - Adjust **Font Size** and **Font Color** in the controls that appear.  
-  - Press **Enter** to finalize the text or **Esc** to cancel.  
-  - Press **Delete** (when editing existing text) to remove it.  
-  - You can drag the text field before confirming by clicking the small "Drag here" handle.
+    Your server is now active at `http://localhost:3000`.
 
-### 5. Undo/Redo
-- **Undo** reverses your last action (adding a line, adding text, removing text, etc.).  
-- **Redo** reapplies an action that was undone.  
+### 2. Frontend Setup - HTML Application 🖥️
 
-> The Undo/Redo system only tracks annotation actions; it does not revert screenshot selection.
+1.  **Save HTML:** Take the HTML/CSS/JavaScript code and save it as `index.html`.
+2.  **Serve the HTML:** Start a local server from the directory containing your `index.html` using:
 
-### 6. Zoom In/Out
-- **Zoom In**: Increases the scale factor, making the canvas larger.  
-- **Zoom Out**: Decreases the scale factor, making the canvas smaller.  
-> Repeatedly click these buttons to incrementally zoom.
+    ```bash
+    python -m http.server
+    ```
 
-### 7. Clear Selection
-- Removes the last rectangular selection and all annotations (drawn lines, text).  
-- Essentially resets the canvas state.
+    Access the application through `http://localhost:8000` or `http://127.0.0.1:8000`.
 
-### 8. Chat Panel
-- Once screen capture starts, the chat panel on the right becomes visible.  
-- Type your message in the text box, then click **Send**.  
-  - The chat will attempt to send your text and the selected region (or entire screen if no selection was made) to OpenAI via the provided API key.  
-- The assistant's response is displayed below your message.  
-  - Code blocks in the assistant's message are rendered in a `<pre><code>` block.  
-  - Each assistant message has a small **Copy** button in the bottom-right corner to copy its entire contents to clipboard.
+    💡 **Pro Tip:** The frontend fetches the API key from `http://localhost:3000`. Ensure both servers are running concurrently.
 
----
+## 🕹️ Usage Guide
 
-## File Overview
+1.  **Start Screen Capture:** Click the "Start Screen Capture" button.
+2.  **Select a Region:** Click and drag to select a part of your screen.
+3.  **Annotate:** Click "Start Edit Mode" to add your own notes with shapes, lines, and text.
+4.  **Engage AI:** Use the chat interface to send messages to the AI.
+5.  **Documentation:** Click on "Create Documentation" to have the AI create step-by-step document of your capture.
+6.  **Context Menu:** Right-click on a closed shape to get explanation on the selected shape.
+7.  **Chat:** Use the text box on the right to communicate with the AI assistant.
 
-Only one primary file is included (though it may be named `index.html` or something similar):
+## 🛠️ Technologies
 
-- **`index.html`**  
-  Contains all HTML, CSS, and JavaScript inlined. When opened in a modern browser:
-  - Prompts for screen capture.  
-  - Manages annotation and text.  
-  - Integrates a basic chat UI on the right side.  
-  - Sends requests to the OpenAI API when you chat.
+-   **Frontend:** HTML, CSS, JavaScript
+-   **Backend:** Python (Flask)
+-   **AI:** OpenAI API
 
----
+## 🤝 Contributing
 
-## Browser Support
+We welcome contributions from the community!
 
-- **Google Chrome / Edge** (Recommended): Full support for `navigator.mediaDevices.getDisplayMedia`.  
-- **Firefox**: Mostly supported, but some known quirks may occur with screen capturing.  
-- **Safari**: Limited or partial support depending on version.  
 
-Always ensure you grant the necessary permissions for screen capture.
+## 🌟 Support
 
----
+If you find this project useful, give it a star on GitHub!
 
-## Contributing
+## 🐛 Report a Bug
 
-1. Fork this repository.  
-2. Create a feature branch for your changes (`git checkout -b feature/new-feature`).  
-3. Commit your changes (`git commit -m 'Add some feature'`).  
-4. Push to the branch (`git push origin feature/new-feature`).  
-5. Open a Pull Request describing your changes.  
-
-Bug reports and feature requests can be submitted via [GitHub Issues](../../issues).
-
----
-
-## License
-
-Licensed under the [MIT License](./LICENSE). Feel free to use this code as a starting point for your own projects, or contribute improvements back here!
-
+Encountered a bug? Please submit it as an issue in our issue tracker on Github!
