@@ -4,6 +4,15 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Screen Capture + Sub-Selection Analysis + Chat (Aspect Ratio Preserved)</title>
+
+  <!-- ADDED: For professional code + text rendering -->
+  <link
+    rel="stylesheet"
+    href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/default.min.css"
+  />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500&display=swap');
 
@@ -270,6 +279,8 @@
       position: relative; 
       font-size: 14px;
       line-height: 1.4;
+      white-space: pre-wrap;
+      word-wrap: break-word;
     }
     .chat-message.user {
       background-color: #e2f7ff;
@@ -365,6 +376,10 @@
         <button id="redoBtn" class="hidden">Redo</button>
         <button id="clearSelectionBtn" class="hidden">Clear Selection</button>
         <button id="createDocumentationBtn" class="hidden">Create Documentation</button>
+
+        <!-- ADDED: New buttons -->
+        <button id="setDocuPromptBtn" class="hidden">Set Docu Prompt</button> <!-- ADDED -->
+        <button id="startNewChatBtn" class="hidden">Start New Chat</button>   <!-- ADDED -->
       </div>
 
       <!-- ADDED/MOVED: A dedicated options area that always stays visible -->
@@ -480,6 +495,9 @@
   let previous_convo = "";
   const chatHistory = [];
 
+  // ADDED: Make docPrompt globally adjustable
+  let docPrompt = "create a documentation based on the red annotations. do not include any other information. the documentation shall be usable to guide user through the correct steps"; // ADDED
+
   const startCaptureBtn = document.getElementById('startCaptureBtn');
   const fullScreenshotBtn = document.getElementById('fullScreenshotBtn');
   const editModeBtn = document.getElementById('editModeBtn');
@@ -505,6 +523,10 @@
   const eraserThicknessInput = document.getElementById('eraserThickness');
   const createDocumentationBtn = document.getElementById('createDocumentationBtn');
   const busyOverlay = document.getElementById('busyOverlay');
+
+  // ADDED: New references for the newly-added buttons
+  const setDocuPromptBtn = document.getElementById('setDocuPromptBtn');    // ADDED
+  const startNewChatBtn = document.getElementById('startNewChatBtn');      // ADDED
 
   const captureCanvas = document.getElementById('captureCanvas');
   const ctx = captureCanvas.getContext('2d');
@@ -580,6 +602,9 @@
         redoBtn.classList.remove('hidden');
         clearSelectionBtn.classList.remove('hidden');
         createDocumentationBtn.classList.remove('hidden');
+        // ADDED: show new buttons
+        setDocuPromptBtn.classList.remove('hidden');  // ADDED
+        startNewChatBtn.classList.remove('hidden');   // ADDED
       }
 
       video.addEventListener('loadedmetadata', () => {
@@ -934,8 +959,7 @@
   // EDIT MODE BUTTON
   editModeBtn.addEventListener('click', () => {
     if (activeTextContainer) return;
-    // If we are already in edit mode, pressing again => turn off (start)
-    // Otherwise => turn on
+    // If we are already in edit mode, pressing again => turn off
     if (!isEditing) {
       activateEditMode();
     } else {
@@ -949,7 +973,6 @@
   textModeBtn.addEventListener('click', () => {
     if (activeTextContainer) return;
     // If we are not in text mode, pressing => turn it on
-    // If we are in text mode, pressing => turn it off
     if (!isTextMode) {
       activateTextMode();
     } else {
@@ -962,7 +985,6 @@
   eraserBtn.addEventListener('click', () => {
     if (activeTextContainer) return;
     // If not in eraser mode => turn it on
-    // If we are in eraser mode => turn it off
     if (!isEraserMode) {
       activateEraserMode();
     } else {
@@ -1001,6 +1023,22 @@
     undoneStack = [];
 
     actx.clearRect(0, 0, annotationCanvas.width, annotationCanvas.height);
+  });
+
+  // ADDED: Set Docu Prompt button listener
+  setDocuPromptBtn.addEventListener('click', () => {
+    const newPrompt = prompt("Enter your new documentation prompt:", docPrompt);
+    if (newPrompt !== null && newPrompt.trim() !== '') {
+      docPrompt = newPrompt.trim();
+      alert("Documentation prompt updated!");
+    }
+  });
+
+  // ADDED: Start New Chat button listener
+  startNewChatBtn.addEventListener('click', () => {
+    chatHistory.length = 0; 
+    previous_convo = "";
+    chatHistoryDiv.innerHTML = "";
   });
 
 
@@ -1209,19 +1247,23 @@
   /*********************************
    * CHAT UI + OPENAI INTEGRATION  *
    *********************************/
+
+  // ADDED: Use Marked + highlight.js for professional rendering
   function formatAssistantResponse(content) {
-    let formatted = content.replace(
-      /```([^`]+)```/g,
-      (match, codeContent) => {
-        const escapedCode = codeContent
-          .replace(/&/g, "&amp;")
-          .replace(/</g, "&lt;")
-          .replace(/>/g, "&gt;");
-        return `<pre><code>${escapedCode}</code></pre>`;
-      }
-    );
-    formatted = formatted.replace(/\n/g, "<br>");
-    return formatted;
+    // Convert to HTML via Marked
+    const mdHtml = marked.parse(content);
+
+    // Create a temporary div
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = mdHtml;
+
+    // Highlight all code blocks
+    tempDiv.querySelectorAll('pre code').forEach((block) => {
+      hljs.highlightBlock(block);
+    });
+
+    // Return the final HTML
+    return tempDiv.innerHTML;
   }
 
   function appendChatMessage(role, content) {
@@ -1248,6 +1290,7 @@
       });
       msgDiv.appendChild(copyBtn);
     } else {
+      // user text => just plain textContent
       msgDiv.textContent = content;
     }
 
@@ -1437,7 +1480,7 @@ ${userInput}
         imageData = storedSelectionDataURL;
       }
 
-      const docPrompt = "create a documentation based on the red annotations. do not include any other information. the documentation shall be usable to guide user through the correct steps";
+      // ADDED: Use our updatable docPrompt here
       appendChatMessage('user', docPrompt);
       appendChatMessage('assistant', "Thinking...");
 
